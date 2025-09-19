@@ -1,0 +1,56 @@
+DROP TABLE IF EXISTS StudentEnrollments;
+
+CREATE TABLE StudentEnrollments (
+    enrollment_id   INT PRIMARY KEY,
+    student_name    VARCHAR(100) NOT NULL,
+    course_id       VARCHAR(10) NOT NULL,
+    enrollment_date DATE NOT NULL,
+    CONSTRAINT unique_enrollment UNIQUE (student_name, course_id)
+);
+
+-- Part A: Prevent Duplicate Enrollments
+INSERT INTO StudentEnrollments (enrollment_id, student_name, course_id, enrollment_date)
+VALUES
+    (1, 'Ashish',  'CSE101', '2024-07-01'),
+    (2, 'Smaran',  'CSE102', '2024-07-01'),
+    (3, 'Vaibhav', 'CSE101', '2024-07-01');
+
+START TRANSACTION;
+INSERT INTO StudentEnrollments (enrollment_id, student_name, course_id, enrollment_date)
+VALUES (4, 'Kiran', 'CSE103', '2024-07-02');
+COMMIT;
+
+START TRANSACTION;
+INSERT INTO StudentEnrollments (enrollment_id, student_name, course_id, enrollment_date)
+VALUES (5, 'Ashish', 'CSE101', '2024-07-02'); -- duplicate, will fail
+ROLLBACK;
+
+SELECT * FROM StudentEnrollments;
+
+-- Part B: SELECT FOR UPDATE (run in one session as User A)
+START TRANSACTION;
+SELECT * FROM StudentEnrollments
+WHERE student_name = 'Ashish' AND course_id = 'CSE101'
+FOR UPDATE;
+-- keep open, then try update in another session
+
+-- Part C: Locking Preserves Consistency
+START TRANSACTION;
+SELECT * FROM StudentEnrollments
+WHERE student_name = 'Vaibhav'
+FOR UPDATE;
+UPDATE StudentEnrollments
+SET course_id = 'CSE104'
+WHERE student_name = 'Vaibhav';
+COMMIT;
+
+START TRANSACTION;
+SELECT * FROM StudentEnrollments
+WHERE student_name = 'Vaibhav'
+FOR UPDATE;
+UPDATE StudentEnrollments
+SET enrollment_date = '2024-07-10'
+WHERE student_name = 'Vaibhav';
+COMMIT;
+
+SELECT * FROM StudentEnrollments;
