@@ -1,0 +1,87 @@
+-- Drop table if it exists (for reruns)
+DROP TABLE IF EXISTS FeePayments;
+
+-- Create FeePayments table with constraints
+CREATE TABLE FeePayments (
+    payment_id INT PRIMARY KEY,
+    student_name VARCHAR(100) NOT NULL,
+    amount DECIMAL(10,2) CHECK (amount > 0),
+    payment_date DATE NOT NULL
+);
+
+-------------------------------------------------------
+-- Part A: Insert Multiple Fee Payments in a Transaction
+-------------------------------------------------------
+
+START TRANSACTION;
+
+INSERT INTO FeePayments (payment_id, student_name, amount, payment_date)
+VALUES 
+(1, 'Ashish', 5000.00, '2024-06-01'),
+(2, 'Smaran', 4500.00, '2024-06-02'),
+(3, 'Vaibhav', 5500.00, '2024-06-03');
+
+COMMIT;
+
+-- Check data after commit
+SELECT * FROM FeePayments;
+
+-------------------------------------------------------
+-- Part B: Demonstrate ROLLBACK for Failed Payment
+-------------------------------------------------------
+
+START TRANSACTION;
+
+-- Valid insert
+INSERT INTO FeePayments (payment_id, student_name, amount, payment_date)
+VALUES (4, 'Kiran', 6000.00, '2024-06-04');
+
+-- Invalid insert: duplicate ID (1) and negative amount
+INSERT INTO FeePayments (payment_id, student_name, amount, payment_date)
+VALUES (1, 'Ashish', -2000.00, '2024-06-05');
+
+-- Rollback because of failure
+ROLLBACK;
+
+-- Verify table (should be unchanged)
+SELECT * FROM FeePayments;
+
+-------------------------------------------------------
+-- Part C: Simulate Partial Failure and Rollback
+-------------------------------------------------------
+
+START TRANSACTION;
+
+-- Valid insert
+INSERT INTO FeePayments (payment_id, student_name, amount, payment_date)
+VALUES (5, 'Ravi', 4000.00, '2024-06-06');
+
+-- Invalid insert: NULL student_name (violates NOT NULL constraint)
+INSERT INTO FeePayments (payment_id, student_name, amount, payment_date)
+VALUES (6, NULL, 3000.00, '2024-06-07');
+
+-- Rollback entire transaction
+ROLLBACK;
+
+-- Verify table again (no changes)
+SELECT * FROM FeePayments;
+
+-------------------------------------------------------
+-- Part D: Verify ACID Compliance
+-------------------------------------------------------
+
+START TRANSACTION;
+
+-- Valid insert
+INSERT INTO FeePayments (payment_id, student_name, amount, payment_date)
+VALUES (7, 'Deepak', 4800.00, '2024-06-08');
+
+-- Invalid insert: duplicate payment_id (2)
+INSERT INTO FeePayments (payment_id, student_name, amount, payment_date)
+VALUES (2, 'Manoj', 5100.00, '2024-06-09');
+
+-- Rollback entire transaction
+ROLLBACK;
+
+-- Final check (only committed rows remain)
+SELECT * FROM FeePayments;
