@@ -1,0 +1,81 @@
+-- Drop and recreate the table
+DROP TABLE IF EXISTS StudentEnrollments;
+
+CREATE TABLE StudentEnrollments (
+    student_id      INT PRIMARY KEY,
+    student_name    VARCHAR(100) NOT NULL,
+    course_id       VARCHAR(10) NOT NULL,
+    enrollment_date DATE NOT NULL
+);
+
+-- Insert sample data
+INSERT INTO StudentEnrollments (student_id, student_name, course_id, enrollment_date) VALUES
+(1, 'Ashish', 'CSE101', '2024-06-01'),
+(2, 'Smaran', 'CSE102', '2024-06-01'),
+(3, 'Vaibhav','CSE103', '2024-06-01');
+
+------------------------------------------------------
+-- Part A: Deadlock Simulation (run in two sessions)
+------------------------------------------------------
+
+-- Session 1 (User A)
+START TRANSACTION;
+UPDATE StudentEnrollments SET enrollment_date = '2024-07-01' WHERE student_id = 1;
+-- Do not commit yet
+-- Then try:
+UPDATE StudentEnrollments SET enrollment_date = '2024-07-02' WHERE student_id = 2;
+
+-- Session 2 (User B)
+START TRANSACTION;
+UPDATE StudentEnrollments SET enrollment_date = '2024-07-03' WHERE student_id = 2;
+-- Do not commit yet
+-- Then try:
+UPDATE StudentEnrollments SET enrollment_date = '2024-07-04' WHERE student_id = 1;
+
+-- One of these transactions will be rolled back automatically due to deadlock.
+
+------------------------------------------------------
+-- Part B: MVCC Demonstration
+------------------------------------------------------
+
+-- Session 1 (User A: starts transaction and reads old value)
+START TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SELECT * FROM StudentEnrollments WHERE student_id = 1;
+-- User A will keep seeing the old value until commit
+
+-- Session 2 (User B: updates concurrently)
+START TRANSACTION;
+UPDATE StudentEnrollments SET enrollment_date = '2024-07-10' WHERE student_id = 1;
+COMMIT;
+
+-- Session 1 (User A: still sees old value inside transaction)
+SELECT * FROM StudentEnrollments WHERE student_id = 1;
+-- After COMMIT, User A will see the updated value
+
+------------------------------------------------------
+-- Part C: Locking vs MVCC Comparison
+------------------------------------------------------
+
+-- Without MVCC (traditional locking with SELECT FOR UPDATE)
+
+-- Session 1 (User A: acquires row lock)
+START TRANSACTION;
+SELECT * FROM StudentEnrollments WHERE student_id = 2 FOR UPDATE;
+
+-- Session 2 (User B: tries to read same row - will block until User A commits)
+SELECT * FROM StudentEnrollments WHERE student_id = 2;
+
+-- With MVCC (normal SELECT under REPEATABLE READ isolation)
+
+-- Session 1 (User A: starts transaction and reads snapshot)
+START TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SELECT * FROM StudentEnrollments WHERE student_id = 3;
+
+-- Session 2 (User B: updates same row without blocking User A)
+START TRANSACTION;
+UPDATE StudentEnrollments SET enrollment_date = '2024-07-20' WHERE student_id = 3;
+COMMIT;
+
+-- Session 1 (User A: still sees old snapshot until commit)
+SELECT * FROM StudentEnrollments WHERE student_id = 3;
+COMMIT;
